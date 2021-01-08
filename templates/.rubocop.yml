@@ -1,0 +1,59 @@
+AllCops:
+  TargetRubyVersion: '2.5'
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
+Layout/ArgumentAlignment:
+  EnforcedStyle: with_fixed_indentation
+
+Metrics/AbcSize:
+  Enabled: true
+
+Metrics/ClassLength:
+  Enabled: true
+  Exclude:
+    - 'profiles/audit_rules/libraries/audit_rules.rb'
+
+Layout/MultilineMethodArgumentLineBreaks:
+  Enabled: true
+  
+Layout/MultilineArrayLineBreaks:
+  Enabled: true
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
+
+Layout/LineLength:
+  Max: 250
+  AutoCorrect: true
+
+
+Metrics/MethodLength:
+  Enabled: true
+Metrics/ModuleLength:
+  Enabled: true
+Metrics/CyclomaticComplexity:
+  Enabled: true
+Metrics/PerceivedComplexity:
+  Enabled: true
+
+Style/NumericPredicate:
+  EnforcedStyle: comparison
+
+# Matches cookstyle configuration in case rubocop executed with no customization
+Style/PercentLiteralDelimiters:
+  PreferredDelimiters:
+    "%w": ()
+    "%i": ()
+
+Style/SignalException:
+  EnforcedStyle: only_fail
+
+# Matches cookstyle configuration in case rubocop executed with no customization
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+# Matches cookstyle configuration in case rubocop executed with no customization
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma

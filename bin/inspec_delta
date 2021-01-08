@@ -1,0 +1,4 @@
+require_relative '../lib/inspec_delta'
+
+# Runs when gem is run from command line with arguments and options.
+InspecDelta::Command.start(ARGV)
