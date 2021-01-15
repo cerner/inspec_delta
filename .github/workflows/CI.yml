@@ -25,3 +25,4 @@ jobs:
     - name: Rubocop
       run: bundle exec rubocop
     #Add Code Coverage gate
+    
