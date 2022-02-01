@@ -71,8 +71,8 @@ module InspecDelta
               #require 'pry'; binding.pry
             end
           end
-          puts "Done updating."
         end
+        puts "Done updating."
       end
 
 
