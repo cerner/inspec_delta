@@ -24,12 +24,12 @@ module InspecDelta
 
           g[:stig_title] = benchmark_title
 
-          g[:id] = b.id
           g[:gtitle] = b.title
           g[:description] = b.description
           g[:gid] = b.id
 
           rule = b.rule
+          g[:id] = rule.id.scan(/SV-[\d]+/).first
           g[:rid] = rule.id
           g[:severity] = rule.severity
           g[:stig_id] = rule.version
@@ -62,6 +62,7 @@ module InspecDelta
           g[:dc_type] = reference_group.dc_type
 
           g[:cci] = rule.idents.select { |t| t.start_with?('CCI-') } # XCCDFReader
+          g[:legacy] = rule.idents.select { |t| !t.start_with?('CCI-') }
 
           g[:fix] = rule.fixtext
           g[:fix_id] = rule.fix.id
@@ -69,7 +70,7 @@ module InspecDelta
           g[:check] = rule.check.content
           g[:check_ref_name] = rule.check.content_ref.name
           g[:check_ref] = rule.check.content_ref.href
-          [b.id, g]
+          [g[:id], g]
         end
         mapped_benchmark_group.to_h
       end

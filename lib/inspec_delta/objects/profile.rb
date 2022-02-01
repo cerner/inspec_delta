@@ -31,14 +31,15 @@ module InspecDelta
       #
       # @param [profile_path] String - path to the inspec profile's root directory.
       # @param [stig_file_path] String - The STIG file to be applied to profile.
-      def update(stig_file_path)
+      def update(stig_file_path, rule_id)
         raise StandardError, "STIG file at #{stig_file_path} not found" unless File.exist?(stig_file_path)
-
         control_dir = "#{@profile_path}/controls"
         benchmark = InspecDelta::Parser::Benchmark.get_benchmark(stig_file_path)
         benchmark.each do |control_id, control|
           benchmark_control = InspecDelta::Object::Control.from_benchmark(control)
-          profile_control_path = File.join(File.expand_path(control_dir), "#{control_id}.rb")
+          control_filename = (rule_id || control[:legacy].nil? || control[:legacy].empty?) ? "#{control_id}.rb" : 
+            "#{control[:legacy].select{ |x| x.start_with? ('V-') }.first}.rb"
+          profile_control_path = File.join(File.expand_path(control_dir), control_filename)
           if File.file?(profile_control_path)
             update_existing_control_file(profile_control_path, benchmark_control)
           else
@@ -54,7 +55,15 @@ module InspecDelta
       def update_existing_control_file(profile_control_path, benchmark_control)
         profile_control = InspecDelta::Object::Control.from_ruby(profile_control_path)
         updated_control = profile_control.apply_updates(benchmark_control)
-        File.open(profile_control_path, 'w') { |f| f.puts updated_control }
+        updated_path = profile_control_path.sub(
+          /[^\/\\]+.rb/,
+          updated_control[:id] + '.rb'
+        )
+        
+        File.open(profile_control_path, 'w') { |f| f.puts updated_control[:control_string] }
+        if updated_path != profile_control_path
+          File.rename(profile_control_path, updated_path)
+        end
       end
 
       # Creates a control file with the string representation of the benchmark control
