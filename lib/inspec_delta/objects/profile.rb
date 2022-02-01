@@ -48,6 +48,34 @@ module InspecDelta
         end
       end
 
+      # Updates ONLY the filenames of the profile's controls metadata with definitions from a STIG xml file
+      #
+      # @param [profile_path] String - path to the inspec profile's root directory.
+      # @param [stig_file_path] String - The STIG file to be applied to profile.
+      def update_id(stig_file_path)
+        raise StandardError, "STIG file at #{stig_file_path} not found" unless File.exist?(stig_file_path)
+          control_dir = "#{@profile_path}/controls"
+          benchmark = InspecDelta::Parser::Benchmark.get_benchmark(stig_file_path)
+          benchmark.each do |control_id, control| unless control[:legacy].nil? || control[:legacy].empty?
+            benchmark_control = InspecDelta::Object::Control.from_benchmark(control)
+            control_filename = "#{control[:legacy].select{ |x| x.start_with? ('V-') }.first}.rb"
+            profile_control_path = File.join(File.expand_path(control_dir), control_filename)
+            #require 'pry'; binding.pry
+            if File.file?(profile_control_path)
+              puts "Updating \"#{control_filename}\" ==> \"#{control[:id]}.rb\""
+              updated_path = profile_control_path.sub(
+                /[^\/\\]+.rb/,
+                control[:id] + '.rb'
+              )
+              system("cd #{@profile_path} && git mv #{profile_control_path} #{updated_path}")
+              #require 'pry'; binding.pry
+            end
+          end
+          puts "Done updating."
+        end
+      end
+
+
       # Updates a control file with the updates from the stig
       #
       # @param [profile_control_path] String - The location of the Inspec profile on disk
@@ -59,11 +87,12 @@ module InspecDelta
           /[^\/\\]+.rb/,
           updated_control[:id] + '.rb'
         )
-        
-        File.open(profile_control_path, 'w') { |f| f.puts updated_control[:control_string] }
         if updated_path != profile_control_path
-          File.rename(profile_control_path, updated_path)
+          #require 'pry'; binding.pry
+          system("cd #{@profile_path} && git mv #{profile_control_path} #{updated_path}")
+          profile_control_path = updated_path
         end
+        File.open(profile_control_path, 'w') { |f| f.puts updated_control[:control_string] }
       end
 
       # Creates a control file with the string representation of the benchmark control
