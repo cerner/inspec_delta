@@ -34,11 +34,28 @@ module InspecDelta
       #
       # @return [control_string] String updated string with the changes from other
       def apply_updates(other)
+        apply_updates_id(other.id)
         apply_updates_title(other.title)
         apply_updates_desc(other.descriptions[:default])
         apply_updates_impact(other.impact)
         apply_updates_tags(other)
-        @control_string
+        return {
+          :control_string => @control_string,
+          :id => other.id
+        }
+      end
+
+      # Updates a string representation of a Control's ID with string substitutions
+      # Only updates the ID if the Other ID does not match the one in the Control
+      #
+      # @param [String] title - The title to be applied to the Control
+      def apply_updates_id(id)
+        wrap_length = MAX_LINE_LENGTH - WORD_WRAP_INDENT
+
+        @control_string.sub!(
+          /(control\s+)(\S+)(\s+do)/,
+          "control \'#{id}\' do".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
+        )
       end
 
       # Updates a string representation of a Control's title with string substitutions
@@ -62,7 +79,6 @@ module InspecDelta
         return if desc.to_s.empty?
 
         wrap_length = MAX_LINE_LENGTH - WORD_WRAP_INDENT
-
         @control_string.sub!(
           /desc\s+(((").*?(?<!\\)")|((').*?(?<!\\)')|((%q{).*?(?<!\\)[}])|(nil))\n/m,
           "desc %q{#{desc}}".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
@@ -82,8 +98,12 @@ module InspecDelta
       #
       # @param [Control] other - The Control to be merged in
       def apply_updates_tags(other)
+
+        # we might want to add tags in from the new benchmark that
+        # did not appear in the old profile, such as legacy tags
+        expanded_tags = @tags.append(other.tags.find{ |x| x.key == 'legacy' })
         other.tags.each do |ot|
-          tag = @tags.detect { |t| t.key == ot.key }
+          tag = expanded_tags.detect { |t| t.key == ot.key }
           next unless tag
 
           if ot.value.instance_of?(String)
@@ -100,18 +120,21 @@ module InspecDelta
       #
       # @param [Tag] ot - The Tag to be merged in
       def apply_updates_tags_string(tag)
-        if tag.value.empty?
-          @control_string.sub!(
-            /tag\s+['"]?#{tag.key}['"]?:\s+(((").*?(?<!\\)")|((').*?(?<!\\)')|((%q{).*?(?<!\\)[}])|(nil))\n/m,
-            "tag '#{tag.key}': nil\n"
-          )
-        else
-          wrap_length = MAX_LINE_LENGTH - WORD_WRAP_INDENT
+        wrap_length = MAX_LINE_LENGTH - WORD_WRAP_INDENT
+        updated_control_string = @control_string.sub(
+          /tag\s+['"]?#{tag.key}['"]?:\s+(((").*?(?<!\\)")|((').*?(?<!\\)')|((%q{).*?(?<!\\)[}])|(nil))\n/m,
+          "tag '#{tag.key}': %q{#{tag.value ? tag.value : 'nil'}}".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
+        )
 
+        if updated_control_string == @control_string
+          # the sub call failed -- this tag isn't in the profile already and must be added
           @control_string.sub!(
-            /tag\s+['"]?#{tag.key}['"]?:\s+(((").*?(?<!\\)")|((').*?(?<!\\)')|((%q{).*?(?<!\\)[}])|(nil))\n/m,
+            /(?=tag\s+[\'\"])/m,
             "tag '#{tag.key}': %q{#{tag.value}}".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
           )
+          
+        else
+          @control_string = updated_control_string
         end
       end
 
@@ -120,11 +143,19 @@ module InspecDelta
       # @param [Tag] ot - The Tag to be merged in
       def apply_updates_tags_array(tag)
         wrap_length = MAX_LINE_LENGTH - WORD_WRAP_INDENT
-
-        @control_string.sub!(
+        updated_control_string = @control_string.sub(
           /tag\s+['"]?#{tag.key}['"]?:\s+(((%w\().*?(?<!\\)(\)))|((\[).*?(?<!\\)(\]))|(nil))\n/m,
           "tag '#{tag.key}': #{tag.value}".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
         )
+        if updated_control_string == @control_string
+          # the sub call failed -- this tag isn't in the profile already and must be added
+          @control_string.sub!(
+            /(?=tag\s+[\'\"])/m,
+            "tag '#{tag.key}': #{tag.value}".word_wrap(wrap_length).indent(WORD_WRAP_INDENT)
+          )
+        else
+          @control_string = updated_control_string
+        end
       end
 
       # Updates a string representation of a Control's tags with string substitutions
@@ -150,6 +181,7 @@ module InspecDelta
           'stig_id' => :stig_id,
           'fix_id' => :fix_id,
           'cci' => :cci,
+          'legacy' => :legacy,
           'false_negatives' => :false_negatives,
           'false_positives' => :false_positives,
           'documentable' => :documentable,
@@ -203,6 +235,7 @@ module InspecDelta
       # @return [string] severity if no match is found
       def self.impact(severity)
         {
+          'none' => 0.0,
           'low' => 0.3,
           'medium' => 0.5,
           'high' => 0.7
